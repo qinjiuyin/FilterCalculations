@@ -4,6 +4,7 @@
 #include <QSettings>  //ini file header
 #include <QFileInfo>
 #include <QTextCodec>
+#include <QObject>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -21,6 +22,8 @@ MainWindow::MainWindow(QWidget *parent)
     mChartsThread->SettingMessage(ui->graphicsView);
     mChartsThread->moveToThread (threadCharts);
     threadCharts->start();
+    //串口发送的信号与槽
+    QObject::connect(mChartsThread, &ChartsThread::SerialsendData, serial, &SerialPort::SerialsendData, Qt::QueuedConnection);
 }
 
 MainWindow::~MainWindow()
@@ -34,11 +37,6 @@ MainWindow::~MainWindow()
     delete threadCharts;
     /* 关闭串口 */
     serial->CloseSerial();
-    serial->CloseSerialThread();
-    serial->quit();
-    serial->wait();
-    delete serial;
-
     delete ui;
 }
 
@@ -88,10 +86,8 @@ void MainWindow::on_pushButton_2_clicked()
         //获取当前选择串口
         QString strSerial = ui->comboBox->currentText();
         //真正打开串口
-        if (!serial->OpenSerial(&strSerial))
+        if (!serial->OpenSerial(&strSerial,mChartsThread))
         {
-            serial->start();
-            serial->ReStart();
             //记录打开的串口
             if (strSerial != strSerialCache)
             {
@@ -102,18 +98,13 @@ void MainWindow::on_pushButton_2_clicked()
             }
             //标志位
             SerialState = 1;
-            QString str = QString::fromLocal8Bit("关闭串口");
-            ui->pushButton_2->setText(str);
+            ui->pushButton_2->setText(QString::fromUtf8("关闭串口"));
         }
     }
     else
     {
         serial->CloseSerial();
-        serial->CloseSerialThread();
-        serial->quit();
-       // serial->wait();
         SerialState = 0;
-        QString str = QString::fromLocal8Bit("打开串口");
-        ui->pushButton_2->setText(str);
+        ui->pushButton_2->setText(QString::fromUtf8("打开串口"));
     }
 }

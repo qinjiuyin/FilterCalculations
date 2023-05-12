@@ -6,26 +6,38 @@ ChartsThread::ChartsThread(QObject *parent) : QObject(parent)
     m_bStopped = false;
 }
 
-
-
 void ChartsThread :: ThreadRunning()
 {
+    char Rblack = 0x06;
     ThreadID =  (int)QThread::currentThreadId();
     while (!m_bStopped) {
-      int count = m_lineSeries->points().size();                  // 获得当前数据序列点数
-      if(count > AXIS_MAX_X)
-      {
-          m_chart->axisX()->setMax(count);                        // 更新X轴范围
-      }
-      m_lineSeries->append(QPointF(count, rand() % AXIS_MAX_Y));  // 更新显示（随机生成10以内的一个数）
-      QThread::msleep(800);
+        mutex.lock();
+        if (!dataReceived) {
+            condition.wait(&mutex); // 线程等待唤醒
+        }
+        quint16 localData = data; // 保存数据的副本
+        dataReceived = false;
+        mutex.unlock();
+
+        // 在这里实现处理逻辑
+        // 使用进行处理
+        qDebug("Received value in thread: %d\n",localData);
+        /* 画图 */
+        int count = m_lineSeries->points().size();                  // 获得当前数据序列点数
+        if (count > AXIS_MAX_X)
+        {
+            m_chart->axisX()->setMax(count);                        // 更新X轴范围
+        }
+        m_lineSeries->append(QPointF(count, localData % AXIS_MAX_Y));  // 更新显示（随机生成10以内的一个数）
+        /* 发送数据 操作结束后串口返回 */
+        emit SerialsendData(&Rblack, 1);
+        QThread::msleep(1000); // 休眠1秒
     }
 }
 
 void ChartsThread ::SettingMessage(QChartView *view)
 {
        // 创建横纵坐标轴并设置显示范围
-       //
        m_axisX = new QValueAxis();
        m_axisY = new QValueAxis();
        m_axisX->setTitleText("X-label");
@@ -39,9 +51,9 @@ void ChartsThread ::SettingMessage(QChartView *view)
        m_lineSeries->setPointsVisible(true);                         // 设置数据点可见
        m_lineSeries->setName("原始数据");                            // 图例名称
 
-       m_chart = new QChart();                                        // 创建图表对象
-       m_chart->addAxis(m_axisX, Qt::AlignLeft);                      // 将X轴添加到图表上
-       m_chart->addAxis(m_axisY, Qt::AlignBottom);                    // 将Y轴添加到图表上
+       m_chart = new QChart();                                        // 创建图表对象 
+       m_chart->addAxis(m_axisX, Qt::AlignBottom);                      // 将X轴添加到图表上
+       m_chart->addAxis(m_axisY, Qt::AlignLeft);                    // 将Y轴添加到图表上
        m_chart->addSeries(m_lineSeries);                              // 将曲线对象添加到图表上
        m_chart->setAnimationOptions(QChart::SeriesAnimations);        // 动画：能使曲线绘制显示的更平滑，过渡效果更好看
 
@@ -66,3 +78,10 @@ void ChartsThread :: stop()
     QMutexLocker locker(&m_mutex);
     m_bStopped = true;
 }
+
+void ChartsThread :: SettingData(const quint16 data)
+{
+    QMutexLocker locker(&mutex);
+    this->data = data;
+}
+

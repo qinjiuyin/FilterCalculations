@@ -1,42 +1,30 @@
 #ifndef SERIALPORT_H
 #define SERIALPORT_H
 
+#include <QObject>
+
 #include <QSerialPort>
 #include <QSerialPortInfo>
-#include <QSerialPort>
 
-#include <QObject>
-#include <QList>
-#include <QThread>
-#include <QMutex>
+#include "chartsthread.h"
 
-namespace Serial {
-class SerialPort;
-}
-
-class SerialPort : public QThread
+class SerialPort : public QObject
 {
-     Q_OBJECT
+    Q_OBJECT
 public:
     explicit SerialPort(QObject *parent = nullptr);
-    void run();
-    int OpenSerial(QString* pStr);
+    int OpenSerial(QString* pStr, ChartsThread *mChartsThread);
     void CloseSerial(void);
-    int GetValueReal(quint16* dat);
-	int ValueCacheNumber();
-    void CloseSerialThread();
-    void ReStart(void);
+signals:
+    void SerialsendData(char* data, int length);
+public slots:
+    int SerialWrites(char* pszData, int nCount);
 private slots:
     void readSerialData(void);
-
 private:
-    /* 线程相关 */
-    int ThreadID;
-    bool m_bStopped;
-    QMutex m_mutex;
-    /* 内容 */
+    quint16 calculateModbusCRC16(char *data, int length);
     QSerialPort serialPort;
-    QList<quint16> dataList;
+    ChartsThread *mChartsThread;
 };
 
 #endif // SERIALPORT_H

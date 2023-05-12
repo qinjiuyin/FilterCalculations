@@ -26,6 +26,7 @@ SOURCES += \
 HEADERS += \
     chartsthread.h \
     mainwindow.h \
+    serialport.h \
     serialport.h
 
 FORMS += \
